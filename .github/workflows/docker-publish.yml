@@ -1,23 +1,23 @@
-# Build a tiny image and push it to a PRIVATE Cloudsmith repo — using the v3
-# action + the CLI's Docker credential helper. After OIDC install there is NO
-# token handling: `docker push` transparently gets short-lived creds from the
-# helper. Linux and Windows push distinct OS tags so they don't clobber.
+# Same goal as the v3 branch — build + push a tiny image to a private Cloudsmith
+# repo on Linux and Windows — but using cloudsmith-io/cloudsmith-cli-action@v2.
+#
+# v2 has NO Docker credential helper: the action exchanges OIDC and SAVES the JWT
+# to CLOUDSMITH_API_KEY, then YOU must run `docker login` with it before pushing.
+# That extra manual auth step is exactly what v3's credential helper removes.
 
-name: Docker publish (v3)
+name: Docker publish (v2)
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ v2-action ]
     paths: [ "Dockerfile", "Dockerfile.windows", ".github/workflows/docker-publish.yml" ]
 
 permissions:
-  id-token: write   # OIDC: helper exchanges this for Docker creds on demand
+  id-token: write
   contents: read
 
 env:
-  CLOUDSMITH_ORG: ${{ vars.CLOUDSMITH_ORG }}
-  CLOUDSMITH_SERVICE_SLUG: ${{ vars.CLOUDSMITH_SERVICE_SLUG }}
   IMAGE: docker.cloudsmith.io/bart-demo-org-terraform/claude-test-repo/hello-cloudsmith
 
 jobs:
@@ -30,11 +30,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Cloudsmith CLI (OIDC)
-        uses: BartoszBlizniak/cloudsmith-cli-action@v3-poc
+      # v2 reads auth from `with:` inputs (not env) and must request aud=cloudsmith
+      # to match the OIDC binding. It saves the exchanged token to CLOUDSMITH_API_KEY.
+      - name: Install Cloudsmith CLI + OIDC (v2)
+        uses: cloudsmith-io/cloudsmith-cli-action@v2
+        with:
+          oidc-namespace: ${{ vars.CLOUDSMITH_ORG }}
+          oidc-service-slug: ${{ vars.CLOUDSMITH_SERVICE_SLUG }}
+          oidc-audience: cloudsmith
 
-      - name: Configure Docker credential helper
-        run: cloudsmith credential-helper install docker
+      # >>> EXTRA STEP that v3 removes: manually log Docker in with the saved JWT <<<
+      - name: Docker login with saved JWT (Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: echo "$CLOUDSMITH_API_KEY" | docker login docker.cloudsmith.io -u token --password-stdin
+
+      - name: Docker login with saved JWT (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: $env:CLOUDSMITH_API_KEY | docker login docker.cloudsmith.io -u token --password-stdin
 
       - name: Build & push (Linux)
         if: runner.os != 'Windows'
