@@ -1,0 +1,3 @@
+# Tiny Windows demo image pushed to Cloudsmith (Windows containers on windows-latest).
+FROM mcr.microsoft.com/windows/nanoserver:ltsc2022
+LABEL org.opencontainers.image.title="hello-cloudsmith"

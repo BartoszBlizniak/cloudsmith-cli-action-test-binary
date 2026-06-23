@@ -1,0 +1,51 @@
+# Build a tiny image and push it to a PRIVATE Cloudsmith repo — using the v3
+# action + the CLI's Docker credential helper. After OIDC install there is NO
+# token handling: `docker push` transparently gets short-lived creds from the
+# helper. Linux and Windows push distinct OS tags so they don't clobber.
+
+name: Docker publish (v3)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths: [ "Dockerfile", "Dockerfile.windows", ".github/workflows/docker-publish.yml" ]
+
+permissions:
+  id-token: write   # OIDC: helper exchanges this for Docker creds on demand
+  contents: read
+
+env:
+  CLOUDSMITH_ORG: ${{ vars.CLOUDSMITH_ORG }}
+  CLOUDSMITH_SERVICE_SLUG: ${{ vars.CLOUDSMITH_SERVICE_SLUG }}
+  IMAGE: docker.cloudsmith.io/bart-demo-org-terraform/claude-test-repo/hello-cloudsmith
+
+jobs:
+  publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Cloudsmith CLI (OIDC)
+        uses: BartoszBlizniak/cloudsmith-cli-action@v3-poc
+
+      - name: Configure Docker credential helper
+        run: cloudsmith credential-helper install docker
+
+      - name: Build & push (Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          docker build -t "${IMAGE}:linux" -f Dockerfile .
+          docker push "${IMAGE}:linux"
+
+      - name: Build & push (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          docker build -t "${env:IMAGE}:windows" -f Dockerfile.windows .
+          docker push "${env:IMAGE}:windows"
