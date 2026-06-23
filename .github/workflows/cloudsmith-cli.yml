@@ -1,0 +1,32 @@
+# Install + OIDC-authenticate the Cloudsmith CLI on Linux and Windows.
+# No Python, no pip — a standalone binary pulled from a public Cloudsmith repo.
+
+name: Cloudsmith CLI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  id-token: write   # REQUIRED: lets the CLI exchange the GitHub OIDC token
+  contents: read
+
+jobs:
+  whoami:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+    runs-on: ${{ matrix.os }}
+    env:
+      # Native OIDC — no API key anywhere. The CLI swaps the GitHub OIDC token
+      # for a short-lived Cloudsmith credential on first use.
+      CLOUDSMITH_ORG: ${{ vars.CLOUDSMITH_ORG }}
+      CLOUDSMITH_SERVICE_SLUG: ${{ vars.CLOUDSMITH_SERVICE_SLUG }}
+    steps:
+      - name: Install Cloudsmith CLI
+        uses: BartoszBlizniak/cloudsmith-cli-action@v3-poc
+
+      - name: Who am I?
+        run: cloudsmith whoami
