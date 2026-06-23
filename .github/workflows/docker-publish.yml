@@ -50,16 +50,17 @@ jobs:
         shell: pwsh
         run: $env:CLOUDSMITH_API_KEY | docker login docker.cloudsmith.io -u token --password-stdin
 
+      # Repo is immutable, so use a unique tag per run (re-runs always republish).
       - name: Build & push (Linux)
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          docker build -t "${IMAGE}:linux" -f Dockerfile .
-          docker push "${IMAGE}:linux"
+          docker build -t "${IMAGE}:linux-${{ github.run_number }}" -f Dockerfile .
+          docker push "${IMAGE}:linux-${{ github.run_number }}"
 
       - name: Build & push (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          docker build -t "${env:IMAGE}:windows" -f Dockerfile.windows .
-          docker push "${env:IMAGE}:windows"
+          docker build -t "${env:IMAGE}:windows-${{ github.run_number }}" -f Dockerfile.windows .
+          docker push "${env:IMAGE}:windows-${{ github.run_number }}"
