@@ -26,7 +26,7 @@ jobs:
       CLOUDSMITH_SERVICE_SLUG: ${{ vars.CLOUDSMITH_SERVICE_SLUG }}
     steps:
       - name: Install Cloudsmith CLI
-        uses: BartoszBlizniak/cloudsmith-cli-action@v3-poc
+        uses: BartoszBlizniak/cloudsmith-cli-action@main
 
       - name: Who am I? (Linux)
         if: runner.os != 'Windows'
