@@ -28,5 +28,20 @@ jobs:
       - name: Install Cloudsmith CLI
         uses: BartoszBlizniak/cloudsmith-cli-action@v3-poc
 
-      - name: Who am I?
-        run: cloudsmith whoami
+      - name: Who am I? (Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          out="$(cloudsmith whoami)"
+          echo "$out"
+          echo "$out" | grep -qi "anonymous" && { echo "::error::not authenticated"; exit 1; }
+          echo "$out" | grep -q "${{ vars.CLOUDSMITH_SERVICE_SLUG }}"
+
+      - name: Who am I? (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $out = cloudsmith whoami | Out-String
+          Write-Host $out
+          if ($out -match "anonymous") { Write-Error "not authenticated"; exit 1 }
+          if ($out -notmatch "${{ vars.CLOUDSMITH_SERVICE_SLUG }}") { Write-Error "unexpected identity"; exit 1 }
